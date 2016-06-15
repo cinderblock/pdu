@@ -263,6 +263,7 @@ pduParser.generate = function(message) {
         pdu += '08';
     else if(message.encoding === '7bit')
         pdu += '00';
+    else throw new Error('Encoding not supported:', message.encoding);
 
     var pdus = new Array();
 
