@@ -98,7 +98,7 @@ pduParser.parse = function(pdu) {
     else if(encoding === '7bit')
         var text = pduParser.decode7Bit(pdu.slice(cursor), dataLength);
     else if(encoding === '8bit')
-        var text = ''; //TODO
+        var text = pduParser.decode8Bit(pdu.slice(cursor), dataLength);
 
     var data = {
         'smsc' : smscNum,
@@ -168,6 +168,10 @@ pduParser.deSwapNibbles = function(nibbles) {
     return out;
 }
 
+pduParser.decode8Bit = function(buffer, length) {
+    return buffer.slice(0, length);
+}
+
 pduParser.decode7Bit = function(code, count) {
     //We are getting 'septeps'. We should decode them.
     var binary = '';
@@ -195,6 +199,11 @@ pduParser.decode7Bit = function(code, count) {
         ascii += String.fromCharCode(parseInt(bin[i], 2));
 
     return ascii;
+}
+
+
+pduParser.encode8Bit = function(ascii) {
+  return ascii;
 }
 
 pduParser.encode7Bit = function(ascii) {
@@ -231,6 +240,9 @@ pduParser.generate = function(message) {
     else if(message.encoding === '7bit' && message.text.length > 160)
         parts = message.text.length / 153;
 
+    else if(message.encoding === '8bit' && message.text.length > 140)
+        parts = message.text.length / 134;
+
     parts = Math.ceil(parts);
 
     TPMTI  = 1;
@@ -263,6 +275,8 @@ pduParser.generate = function(message) {
         pdu += '08';
     else if(message.encoding === '7bit')
         pdu += '00';
+    else if(message.encoding === '8bit')
+        pdu += '04';
     else throw new Error('Encoding not supported:', message.encoding);
 
     var pdus = new Array();
@@ -287,6 +301,13 @@ pduParser.generate = function(message) {
                 var length = 160;
             else
                 var length = 153;
+        } else if(message.encoding === '8bit') {
+            /* If there are more than one messages to be sent, we are going to have to put some UDH. Then, we would have space only
+             * for 134 bytes characters instead of 140 */
+            if(parts === 1)
+                var length = 140;
+            else
+                var length = 134;
         }
         var text = message.text.slice(i*length, (i*length)+length);
 
@@ -299,6 +320,9 @@ pduParser.generate = function(message) {
 
         } else if(message.encoding === '7bit') {
             user_data = pduParser.encode7Bit(text);
+            var size = user_data.length / 2;
+        } else if(message.encoding === '8bit') {
+            user_data = pduParser.encode8Bit(text);
             var size = user_data.length / 2;
         }
 
